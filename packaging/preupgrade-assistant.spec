@@ -15,12 +15,14 @@
 
 Name:           preupgrade-assistant
 Version:        2.6.2
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Preupgrade Assistant advises on feasibility of system upgrade or migration
 Group:          System Environment/Libraries
 License:        GPLv3+
 
 Source0:        %{name}-%{version}.tar.gz
+Patch1:         1-preupgrade-assistant-centospkgs.patch
+Patch2:         2-preupgrade-assistant-no-variants.patch
 %if %{build_ui}
 Source1:        Django-%{django_version}.tar.gz
 Source2:        south-%{south_version}.tar.gz
@@ -63,8 +65,8 @@ Preupgrade Assistant is also capable of migrating the system. It then
 produces a report, which assists you in performing the upgrade itself
 by outlining potential problem areas and by offering suggestions about
 mitigating any possible incompatibilities. The Preupgrade Assistant
-utility is a Red Hat Upgrade Tool prerequisite for completing a successful
-in-place upgrade to the next major version of Red Hat Enterprise Linux.
+utility is a CentOS Upgrade Tool prerequisite for completing a successful
+in-place upgrade to the next major version of CentOS Linux.
 
 %if %{build_ui}
 %package ui
@@ -94,6 +96,8 @@ OpenSCAP is generated automatically.
 
 %prep
 %setup -n %{name}-%{version} -q
+%patch1 -p0
+%patch2 -p0
 
 %if %{build_ui}
 # Unpack UI-related tarballs
@@ -279,5 +283,8 @@ fi
 %attr(0644,root,root) %{_mandir}/man1/preupg-diff.*
 
 %changelog
+* Tue Apr 2 2024 Yuriy Kohut <ykohut@almalinux.org> - 2.6.2-2
+- Add CentOS branding with patches: 1-preupgrade-assistant-centospkgs.patch, 2-preupgrade-assistant-no-variants.patch
+
 * Wed Nov 16 2016 Michal Bocek <mbocek@redhat.com> - %{version}-1
 - Initial version of spec file in upstream

@@ -1,0 +1,113 @@
+--- data/preassessment/scripts.txt.orig	2021-01-29 16:52:35.000000000 +0200
++++ data/preassessment/scripts.txt	2023-12-20 10:02:52.872880812 +0200
+@@ -7,4 +7,4 @@ chkconfig --list=chkconfig.log=CHKCONFIG
+ rpm -qal | sort=rpmtrackedfiles.log=RPMTRACKEDFILES=All installed files=YES=All_installed_files
+ for i in `df --local -P | rev | cut -f1 -d' ' | rev | tail -n +2`;do find $i -xdev -print; done | sort=allmyfiles.log=ALLMYFILES=All local files=NO
+ for i in `df --local -P | rev | cut -f1 -d' ' | rev | tail -n +2`;do find $i -xdev -perm /111 -type f -print; done | sort=executable.log=EXECUTABLES=All executable files=NO
+-grep -e "199e2f91fd431d51" -e "5326810137017186" -e "938a80caf21541eb" -e "fd372689897da07a" -e "45689c882fa658e0" rpm_qa.log=rpm_rhsigned.log=RPM_RHSIGNED_LOG=Red Hat signed packages=NO
++grep -e "0946fca2c105b9de" -e "0b132c3ffe837f6f" -e "119c1a87ef1d6db8" -e "3b75cf79d0ff3d16" -e "24c6a8a7f4a80eb5" -e "c78893ac8fae34bd" rpm_qa.log=rpm_centossigned.log=RPM_CENTOSSIGNED_LOG=CentOS signed packages=NO
+--- common.sh.orig	2021-01-29 16:52:35.000000000 +0200
++++ common.sh	2023-12-20 10:06:43.632875179 +0200
+@@ -56,7 +56,7 @@ VALUE_GROUP=$PREUPGRADE_CACHE/group.log
+ VALUE_RPMTRACKEDFILES=$PREUPGRADE_CACHE/rpmtrackedfiles.log
+ 
+ #
+-# Full path to log file with all Red Hat signed packages
++# Full path to log file with all CentOS signed packages
+ #
+ VALUE_RPM_RHSIGNED=$PREUPGRADE_CACHE/rpm_rhsigned.log
+ 
+@@ -61,6 +61,11 @@ VALUE_RPMTRACKEDFILES=$PREUPGRADE_CACHE/
+ VALUE_RPM_RHSIGNED=$PREUPGRADE_CACHE/rpm_rhsigned.log
+ 
+ #
++# Full path to log file with all CentOS signed packages
++#
++VALUE_RPM_CENTOSSIGNED=$PREUPGRADE_CACHE/rpm_centossigned.log
++
++#
+ # Full path to log file with all local files
+ #
+ VALUE_ALLMYFILES=$PREUPGRADE_CACHE/allmyfiles.log
+@@ -395,10 +395,10 @@ switch_to_content() {
+ 
+ check_applies_to() {
+     #
+-    # Function checks is package is installed and signed by Red Hat
++    # Function checks is package is installed and signed by CentOS
+     #
+     #  Parameter list of packages which will be checked. Module requires them.
+-    # :return: 0 - package is installed and signed by Red Hat
++    # :return: 0 - package is installed and signed by CentOS
+     #          exit_not_applicable - module will not be executed
+     #
+     local RPM=1
+@@ -412,7 +412,7 @@ check_applies_to() {
+         for pkg in $RPM_NAME
+         do
+             is_pkg_installed "$pkg" && is_dist_native "$pkg" || {
+-                log_info "Package $pkg is not installed or it is not signed by Red Hat."
++                log_info "Package $pkg is not installed or it is not signed by CentOS."
+                 NOT_APPLICABLE=1
+             }
+         done
+@@ -599,7 +599,7 @@ is_dist_native() {
+ 
+     grep "^$pkg[[:space:]]" $VALUE_RPM_QA > /dev/null
+     if [ $? -ne 0 ]; then
+-        log_warning "Package $pkg is not installed on Red Hat Enterprise Linux system."
++        log_warning "Package $pkg is not installed on CentOS Enterprise Linux system."
+         return 1
+     fi
+     if [ x"$DEVEL_MODE" == "x0" ]; then
+@@ -603,7 +603,8 @@ is_dist_native() {
+         return 1
+     fi
+     if [ x"$DEVEL_MODE" == "x0" ]; then
+-        grep "^$pkg[[:space:]]" $VALUE_RPM_RHSIGNED > /dev/null
++        #grep "^$pkg[[:space:]]" $VALUE_RPM_RHSIGNED > /dev/null
++        grep "^$pkg[[:space:]]" $VALUE_RPM_CENTOSSIGNED > /dev/null
+         if [ $? -eq 0 ]; then
+             return 0
+         else
+@@ -615,7 +616,8 @@ is_dist_native() {
+                 return 0
+                 ;;
+             "sign")
+-                grep "^$pkg[[:space:]]" $VALUE_RPM_RHSIGNED > /dev/null
++                #grep "^$pkg[[:space:]]" $VALUE_RPM_RHSIGNED > /dev/null
++                grep "^$pkg[[:space:]]" $VALUE_RPM_CENTOSSIGNED > /dev/null
+                 if [ $? -eq 0 ]; then
+                     return 0
+                 else
+--- preupg/script_api.py.orig	2021-01-29 16:52:35.000000000 +0200
++++ preupg/script_api.py	2023-12-20 10:13:17.284874209 +0200
+@@ -75,6 +75,7 @@ __all__ = (
+     'VALUE_ALLMYFILES',
+     'VALUE_EXECUTABLES',
+     'VALUE_RPM_RHSIGNED',
++    'VALUE_RPM_CENTOSSIGNED',
+     'VALUE_TMP_PREUPGRADE',
+     'MODULE_PATH',
+     'COMMON_DIR',
+@@ -162,6 +163,11 @@ VALUE_EXECUTABLES = os.path.join(PREUPGR
+ VALUE_RPM_RHSIGNED = os.path.join(PREUPGRADE_CACHE, "rpm_rhsigned.log")
+ 
+ #
++# Full path to log file with all CentOS signed packages
++#
++VALUE_RPM_CENTOSSIGNED=os.path.join(PREUPGRADE_CACHE, "rpm_centossigned.log")
++
++#
+ # Variable which referes to temporary directory directory provided by module
+ #
+ VALUE_TMP_PREUPGRADE = os.environ['XCCDF_VALUE_TMP_PREUPGRADE']
+@@ -655,7 +661,7 @@ def is_dist_native(pkg):
+         log_warning("Package %s is not installed on Red Hat Enterprise Linux system.")
+         return False
+ 
+-    rpm_signed = FileHelper.get_file_content(VALUE_RPM_RHSIGNED, "rb", True)
++    rpm_signed = FileHelper.get_file_content(VALUE_RPM_CENTOSSIGNED, "rb", True)
+     found = [x for x in rpm_signed if x.split()[0] == pkg]
+ 
+     if int(DEVEL_MODE) == 0:
